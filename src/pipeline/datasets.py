@@ -3,6 +3,8 @@ import pandas as pd
 import luigi
 from sklearn.externals import joblib
 import h5py
+import xgboost as xgb
+import hashlib
 
 from .tasks import EncodeCategoryTrain, TrainSet
 from .folds import CreateTrainFolds
@@ -34,7 +36,10 @@ class ComposeDataset(luigi.Task):
         }
 
     def output(self):
-        return luigi.LocalTarget(f'data_{self.fold_idx}.h5')
+        hash_object = hashlib.md5(self.features.encode('utf-8'))
+        params_hash = hash_object.hexdigest()[:6]
+
+        return luigi.LocalTarget(f'data_{self.fold_idx}_{params_hash}.h5')
 
     def _load_features(self):
         feature_sets = []
@@ -98,7 +103,48 @@ class TrainOnFold(luigi.Task):
         )
 
     def output(self):
-        return luigi.LocalTarget('model.xgb')
+        return luigi.LocalTarget(f'model_{self.fold_idx}.xgb')
+
+    def _get_input_data(self, label):
+        with h5py.File(self.input().path, 'r') as in_file:
+            features = in_file[label]['features'].value
+            target = in_file[label]['target'].value
+            return features, target
 
     def run(self):
-        print('xgb.train')
+        features, target = self._get_input_data('train')
+        test_features, test_target = self._get_input_data('test')
+
+        print(f"Features shape: {features.shape}")
+
+        dtrain = xgb.DMatrix(features, label=target)
+        dtest = xgb.DMatrix(test_features, label=test_target)
+
+        param = [
+            ('max_depth', 6),
+            ('objective', 'reg:linear'),
+            ('subsample', 0.8),
+            ('tree_method', 'exact'),
+            # # learn rate
+            ('eta', 0.1),
+            ('silent', 1),
+
+            #  of multiple eval metrics the last one is used for early stop
+            ('eval_metric', 'rmse'),
+        ]
+
+        watchlist = [
+            (dtrain, 'train'),
+            (dtest, 'test'),
+        ]
+
+        bst = xgb.train(
+            param,
+            dtrain,
+            100,
+            watchlist,
+            verbose_eval=2,
+            early_stopping_rounds=10,
+        )
+        # bst.dump_model('./{}.dump'.format(model_name), with_stats=True)
+        bst.save_model(self.output().path)

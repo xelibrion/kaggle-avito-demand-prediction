@@ -12,12 +12,16 @@ logging.basicConfig(
 
 logging.getLogger("luigi.scheduler").setLevel(logging.WARNING)
 
+PREDICTORS = [
+    'region', 'parent_category_name', 'category_name', 'param_1', 'param_2', 'user_type'
+]
+
 if __name__ == '__main__':
     setup_interface_logging.has_run = True
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--fold', required=True, type=int)
-    parser.add_argument('--features', default='region,city')
+    parser.add_argument('--features', default=','.join(PREDICTORS))
     parser.add_argument('--target', default='deal_probability')
 
     args = parser.parse_args()
