@@ -95,6 +95,8 @@ class TrainOnFold(luigi.Task):
     features = luigi.Parameter()
     target = luigi.Parameter()
 
+    resources = {'train_concurrency': 1}
+
     def requires(self):
         return ComposeDataset(
             fold_idx=self.fold_idx,

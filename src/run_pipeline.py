@@ -16,16 +16,33 @@ PREDICTORS = [
     'region', 'parent_category_name', 'category_name', 'param_1', 'param_2', 'user_type'
 ]
 
+
+class ParseNumFolds(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        super(ParseNumFolds, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if '-' in values:
+            bounds = values.split('-')
+            assert len(bounds) == 2
+            namespace.folds = list(range(int(bounds[0]), int(bounds[1]) + 1))
+        else:
+            namespace.folds = [int(values)]
+
+
 if __name__ == '__main__':
     setup_interface_logging.has_run = True
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fold', required=True, type=int)
+    parser.add_argument('--folds', default=[1], action=ParseNumFolds)
     parser.add_argument('--features', default=','.join(PREDICTORS))
     parser.add_argument('--target', default='deal_probability')
 
     args = parser.parse_args()
 
-    tasks = [TrainOnFold(fold_idx=args.fold, features=args.features, target=args.target)]
+    tasks = [
+        TrainOnFold(fold_idx=x - 1, features=args.features, target=args.target)
+        for x in args.folds
+    ]
 
     luigi.build(tasks, workers=12, local_scheduler=True)
