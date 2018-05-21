@@ -2,20 +2,7 @@ import pandas as pd
 import luigi
 from sklearn.externals import joblib
 
-CAT_COLUMNS = [
-    'region', 'city', 'parent_category_name', 'category_name', 'param_1', 'param_2',
-    'param_3', 'user_type'
-]
-
-
-class TrainSet(luigi.ExternalTask):
-    def output(self):
-        return luigi.LocalTarget('../input/train.csv')
-
-
-class TestSet(luigi.ExternalTask):
-    def output(self):
-        return luigi.LocalTarget('../input/test.csv')
+from ..input_data import TrainSet, TestSet
 
 
 class GetCatValues(luigi.Task):
@@ -71,11 +58,3 @@ class EncodeCategoryTrain(luigi.Task):
         )
         df_enc = pd.get_dummies(df[self.category_name])
         joblib.dump(df_enc, self.output().path)
-
-
-class GetAllCatValues(luigi.Task):
-    def requires(self):
-        return [EncodeCategoryTrain(category_name=x) for x in CAT_COLUMNS]
-
-    def complete(self):
-        return all([x.complete() for x in self.requires()])

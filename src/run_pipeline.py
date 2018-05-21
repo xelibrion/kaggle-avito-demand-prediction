@@ -5,7 +5,7 @@ import logging
 
 import luigi
 from luigi.interface import setup_interface_logging
-from pipeline import TrainOnFold
+from pipeline import TrainOnFold, TrainNNetOnFold
 
 logging.basicConfig(
     level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
@@ -40,9 +40,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    tasks = [
-        TrainOnFold(fold_idx=x - 1, features=args.features, target=args.target)
-        for x in args.folds
-    ]
+    tasks = [TrainNNetOnFold(fold_idx=x - 1, target=args.target) for x in args.folds]
+    # tasks = [
+    #     TrainOnFold(fold_idx=x - 1, features=args.features, target=args.target)
+    #     for x in args.folds
+    # ]
 
     luigi.build(tasks, workers=12, local_scheduler=True)

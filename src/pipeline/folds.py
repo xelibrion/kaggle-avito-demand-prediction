@@ -3,7 +3,7 @@ import luigi
 import h5py
 from sklearn.model_selection import KFold
 
-from .tasks import TrainSet
+from .input_data import TrainSet
 
 
 class CreateTrainFolds(luigi.Task):

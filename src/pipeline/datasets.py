@@ -1,20 +1,27 @@
+import hashlib
+
 import numpy as np
 import pandas as pd
 import luigi
 from sklearn.externals import joblib
 import h5py
 import xgboost as xgb
-import hashlib
 
-from .tasks import EncodeCategoryTrain, TrainSet
+from .input_data import TrainSet
+from .feature_eng.categorical import EncodeCategoryTrain
+from .feature_eng.raw import RawFeatureValues
 from .folds import CreateTrainFolds
+from .feature_desc import CATEGORICAL
 
 
 class FeatureHandling(luigi.Task):
     feature_name = luigi.Parameter()
 
     def requires(self):
-        return EncodeCategoryTrain(self.feature_name)
+        if self.feature_name in CATEGORICAL:
+            return EncodeCategoryTrain(self.feature_name)
+
+        return RawFeatureValues(feature_name=self.feature_name, dataset=TrainSet())
 
     def output(self):
         return self.input()
