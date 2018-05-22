@@ -42,7 +42,7 @@ class TrainNNetOnFold(luigi.Task):
         train_images, train_targets = self._get_input_data('train')
         test_images, test_targets = self._get_input_data('test')
 
-        criterion = torch.nn.BCEWithLogitsLoss(size_average=False)
+        criterion = torch.nn.BCEWithLogitsLoss()
         model, partial_params, full_params = create_model()
         model, criterion = gpu_accelerated(model, criterion)
 
