@@ -17,7 +17,7 @@ class TrainNNetOnFold(luigi.Task):
     target = luigi.Parameter()
     lr = luigi.FloatParameter(default=0.001)
     batch_size = luigi.IntParameter(default=32)
-    bootstrap_epochs = luigi.IntParameter(default=1)
+    bootstrap_batches = luigi.IntParameter(default=100)
 
     resources = {'train_concurrency': 1}
 
@@ -61,7 +61,7 @@ class TrainNNetOnFold(luigi.Task):
             criterion,
             bootstrap_optimizer,
             optimizer,
-            bootstrap_epochs=self.bootstrap_epochs,
+            bootstrap_batches=self.bootstrap_batches,
             tag='fold_{}'.format(0),
         )
 

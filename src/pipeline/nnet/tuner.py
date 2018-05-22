@@ -43,25 +43,13 @@ class AverageMeter(object):
         self.window.append(self.val)
 
 
-class Emitter:
-    def __init__(self, path):
-        self.path = path
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-
-    def __call__(self, event):
-        with open(self.path, 'a') as out_file:
-            event.update({'timestamp': datetime.utcnow().isoformat()})
-            out_file.write(json.dumps(event))
-            out_file.write('\n')
-
-
 class Tuner:
     def __init__(self,
                  model,
                  criterion,
                  bootstrap_optimizer,
                  optimizer,
-                 bootstrap_epochs=1,
+                 bootstrap_batches=100,
                  epochs=200,
                  early_stopping=None,
                  tag=None):
@@ -69,14 +57,12 @@ class Tuner:
         self.criterion = criterion
         self.bootstrap_optimizer = bootstrap_optimizer
         self.optimizer = optimizer
-        self.bootstrap_epochs = bootstrap_epochs
+        self.bootstrap_batches = bootstrap_batches
         self.epochs = epochs
         self.early_stopping = early_stopping
         self.start_epoch = 0
         self.best_score = -float('Inf')
         self.tag = tag
-        self.emit = Emitter('./logs/events.json'
-                            if not tag else './logs/events_{}.json'.format(tag))
 
     def restore_checkpoint(self, checkpoint_file):
         print("=> loading checkpoint '{}'".format(checkpoint_file))
@@ -87,14 +73,13 @@ class Tuner:
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        print("=> loaded checkpoint '{}' (epoch {})".format(checkpoint_file,
-                                                            checkpoint['epoch']))
+        print("=> loaded checkpoint '{}' (epoch {})".format(checkpoint_file, checkpoint['epoch']))
 
     def save_checkpoint(self, validation_score, epoch):
-        checkpoint_filename = ('checkpoint.pth.tar' if not self.tag else
-                               'checkpoint_{}.pth.tar'.format(self.tag))
-        best_model_filename = ('model_best.pth.tar' if not self.tag else
-                               'model_best_{}.pth.tar'.format(self.tag))
+        checkpoint_filename = ('checkpoint.pth.tar'
+                               if not self.tag else 'checkpoint_{}.pth.tar'.format(self.tag))
+        best_model_filename = ('model_best.pth.tar'
+                               if not self.tag else 'model_best_{}.pth.tar'.format(self.tag))
 
         is_best = validation_score > self.best_score
         self.best_score = max(validation_score, self.best_score)
@@ -111,7 +96,7 @@ class Tuner:
             shutil.copyfile(checkpoint_filename, best_model_filename)
 
     def run(self, train_loader, val_loader):
-        self.bootstrap(train_loader, val_loader)
+        self.bootstrap(train_loader)
         self.train_nnet(train_loader, val_loader)
 
     def train_nnet(self, train_loader, val_loader):
@@ -127,11 +112,8 @@ class Tuner:
         )
 
         for epoch in range(self.start_epoch, self.epochs):
-            self.train_epoch(train_loader, self.optimizer, epoch, 'training',
-                             'Epoch #{epoch}')
-
-            val_score = self.validate(val_loader, epoch, 'validation',
-                                      'Validating #{epoch}')
+            self.train_epoch(train_loader, epoch)
+            val_score = self.validate(val_loader, epoch)
 
             scheduler.step(val_score)
 
@@ -144,102 +126,104 @@ class Tuner:
 
             self.save_checkpoint(val_score, epoch)
 
-    def bootstrap(self, train_loader, val_loader):
+    def bootstrap(self, train_loader):
         if self.start_epoch:
             return
 
-        for epoch in range(self.bootstrap_epochs):
-            self.train_epoch(train_loader, self.bootstrap_optimizer, epoch, 'bootstrap',
-                             'Bootstrapping #{epoch}')
-            self.validate(val_loader, epoch, 'bootstrap-val', 'Validating #{epoch}')
+        self._run_bootstrap(train_loader)
 
-    def train_epoch(self, train_loader, optimizer, epoch, stage, format_str):
-        batch_time = AverageMeter()
-        losses = AverageMeter()
+    def compute_batch(self, inputs, target, optimizer=None):
+        end = time.time()
+
+        if optimizer:
+            optimizer.zero_grad()
+
+        inputs, target = gpu_accelerated(inputs, target)
+        output = self.model(inputs)
+        loss = self.criterion(output, target)
+
+        if optimizer:
+            loss.backward()
+            optimizer.step()
+
+        loss_value = loss.data.item()
+        batch_time = time.time() - end
+        return loss_value, batch_time
+
+    def _run_bootstrap(self, train_loader):
+        loss_value_meter = AverageMeter()
+        batch_time_meter = AverageMeter()
+
+        self.model.train()
+
+        tq = tqdm(total=self.bootstrap_batches)
+        tq.set_description('{:16}'.format('Bootstrapping'))
+
+        batches_computed = 0
+        for inputs, target in train_loader:
+            if batches_computed >= self.bootstrap_batches:
+                break
+
+            loss_value, batch_time = self.compute_batch(inputs, target, self.bootstrap_optimizer)
+
+            loss_value_meter.update(loss_value)
+            batch_time_meter.update(batch_time)
+            batches_computed += 1
+
+            tq.set_postfix(
+                batch_time='{:.3f}'.format(batch_time_meter.mavg),
+                loss='{:.3f}'.format(loss_value_meter.mavg),
+            )
+            tq.update()
+
+        tq.close()
+
+    def train_epoch(self, train_loader, epoch):
+        loss_value_meter = AverageMeter()
+        batch_time_meter = AverageMeter()
 
         self.model.train()
 
         tq = tqdm(total=len(train_loader))
-        description = format_str.format(**locals())
-        tq.set_description('{:16}'.format(description))
+        tq.set_description('{:16}'.format(f'Epoch #{epoch}'))
 
-        batch_idx = -1
-        end = time.time()
-        for _, (inputs, target) in enumerate(train_loader):
-            batch_idx += 1
+        for inputs, target in train_loader:
+            loss_value, batch_time = self.compute_batch(inputs, target, self.optimizer)
 
-            inputs, target = gpu_accelerated(inputs, target)
-
-            output = self.model(inputs)
-            loss = self.criterion(output, target)
-
-            batch_size = inputs.size(0)
-            losses.update(loss.data.item(), batch_size)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            batch_time.update(time.time() - end)
+            loss_value_meter.update(loss_value)
+            batch_time_meter.update(batch_time)
 
             tq.set_postfix(
-                batch_time='{:.3f}'.format(batch_time.mavg),
-                loss='{:.3f}'.format(losses.mavg),
+                batch_time='{:.3f}'.format(batch_time_meter.mavg),
+                loss='{:.3f}'.format(loss_value_meter.mavg),
             )
             tq.update()
 
-            self.emit({
-                'stage': stage,
-                'epoch': epoch,
-                'batch': batch_idx,
-                'loss': losses.val
-            })
-
-            end = time.time()
-
         tq.close()
 
-    def validate(self, val_loader, epoch, stage, format_str):
-        batch_time = AverageMeter()
-        losses = AverageMeter()
+    def validate(self, val_loader, epoch):
+        loss_value_meter = AverageMeter()
+        batch_time_meter = AverageMeter()
 
         # switch to evaluate mode
         self.model.eval()
 
         tq = tqdm(total=len(val_loader))
-        description = format_str.format(**locals())
-        tq.set_description('{:16}'.format(description))
+        tq.set_description('{:16}'.format(f'Validating #{epoch}'))
 
-        batch_idx = -1
-        end = time.time()
-        for i, (inputs, target) in enumerate(val_loader):
-            batch_idx += 1
+        for inputs, target in val_loader:
+            loss_value, batch_time = self.compute_batch(inputs, target)
 
-            inputs, target = gpu_accelerated(inputs, target)
-
-            output = self.model(inputs)
-            loss = self.criterion(output, target)
-
-            batch_size = inputs.size(0)
-            losses.update(loss.data.item(), batch_size)
-
-            batch_time.update(time.time() - end)
+            loss_value_meter.update(loss_value)
+            batch_time_meter.update(batch_time)
 
             tq.set_postfix(
-                batch_time='{:.3f}'.format(batch_time.mavg),
-                loss='{:.3f}'.format(losses.mavg),
+                batch_time='{:.3f}'.format(batch_time_meter.mavg),
+                loss='{:.3f}'.format(loss_value_meter.mavg),
             )
             tq.update()
 
-            self.emit({
-                'stage': stage,
-                'epoch': epoch,
-                'batch': batch_idx,
-                'loss': losses.val
-            })
-            end = time.time()
-
         tq.close()
 
-        print(f'Validation results (avg): loss = {losses.avg:.3f}\n')
-        return losses.avg
+        print(f'Validation results (avg): loss = {loss_value_meter.avg:.3f}\n')
+        return loss_value_meter.avg

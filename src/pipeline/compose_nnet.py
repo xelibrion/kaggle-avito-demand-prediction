@@ -53,5 +53,5 @@ def create_model():
     model = models.resnet34(pretrained=True)
     model.fc = nn.Linear(512, 1)
 
-    full_params = list(model.layer4.parameters()) + list(model.fc.parameters())
-    return model, model.fc.parameters(), full_params
+    bootstrap_params = list(model.layer4.parameters()) + list(model.fc.parameters())
+    return model, bootstrap_params, model.parameters()
