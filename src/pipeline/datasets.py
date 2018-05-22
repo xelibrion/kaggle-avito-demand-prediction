@@ -8,10 +8,10 @@ from sklearn.externals import joblib
 import h5py
 import xgboost as xgb
 
-from .input_data import TrainSet
+from .input_data import TrainSet, WithImagesSet
 from .feature_eng.categorical import EncodeCategoryTrain
 from .feature_eng.paths import CorrectImagePath
-from .folds import CreateTrainFolds
+from .folds import CreateFolds
 from .feature_desc import CATEGORICAL
 
 
@@ -25,7 +25,7 @@ class FeatureHandling(luigi.Task):
             return EncodeCategoryTrain(self.feature_name)
 
         task_cls = self.feature_processing_map[self.feature_name]
-        return task_cls(feature_name=self.feature_name, dataset=TrainSet())
+        return task_cls(feature_name=self.feature_name, dataset=WithImagesSet(TrainSet()))
         # return RawFeatureValues(feature_name=self.feature_name, dataset=TrainSet)
 
     def output(self):
@@ -38,10 +38,11 @@ class ComposeDataset(luigi.Task):
     target_column = luigi.Parameter()
 
     def requires(self):
+        dataset = WithImagesSet(TrainSet())
         feature_steps = [FeatureHandling(feature_name=x) for x in self.features.split(',')]
         return {
-            'raw_data': TrainSet(),
-            'folds': CreateTrainFolds(),
+            'raw_data': dataset,
+            'folds': CreateFolds(dataset=dataset),
             'features': feature_steps,
         }
 

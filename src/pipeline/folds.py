@@ -3,14 +3,13 @@ import luigi
 import h5py
 from sklearn.model_selection import KFold
 
-from .input_data import TrainSet
 
-
-class CreateTrainFolds(luigi.Task):
+class CreateFolds(luigi.Task):
+    dataset = luigi.TaskParameter()
     num_folds = luigi.IntParameter(default=5)
 
     def requires(self):
-        return TrainSet()
+        return self.dataset
 
     def output(self):
         return luigi.LocalTarget(f'.cache/folds_{self.num_folds}.h5')
