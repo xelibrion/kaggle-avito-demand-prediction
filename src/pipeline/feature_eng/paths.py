@@ -15,7 +15,7 @@ class CorrectImagePath(luigi.Task):
         return luigi.LocalTarget(f'.cache/img_{self.feature_name}.pkl')
 
     def _img_id_to_path(self, img_id):
-        return f'../input/images/train/{img_id}'
+        return f'../input/images/train/{img_id}.jpg'
 
     def run(self):
         self.output().makedirs()
