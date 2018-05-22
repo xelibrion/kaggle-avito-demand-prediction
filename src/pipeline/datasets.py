@@ -10,7 +10,7 @@ import xgboost as xgb
 
 from .input_data import TrainSet
 from .feature_eng.categorical import EncodeCategoryTrain
-from .feature_eng.raw import RawFeatureValues
+from .feature_eng.paths import CorrectImagePath
 from .folds import CreateTrainFolds
 from .feature_desc import CATEGORICAL
 
@@ -18,11 +18,15 @@ from .feature_desc import CATEGORICAL
 class FeatureHandling(luigi.Task):
     feature_name = luigi.Parameter()
 
+    feature_processing_map = {'image': CorrectImagePath}
+
     def requires(self):
         if self.feature_name in CATEGORICAL:
             return EncodeCategoryTrain(self.feature_name)
 
-        return RawFeatureValues(feature_name=self.feature_name, dataset=TrainSet())
+        task_cls = self.feature_processing_map[self.feature_name]
+        return task_cls(feature_name=self.feature_name, dataset=TrainSet())
+        # return RawFeatureValues(feature_name=self.feature_name, dataset=TrainSet)
 
     def output(self):
         return self.input()
@@ -34,9 +38,7 @@ class ComposeDataset(luigi.Task):
     target_column = luigi.Parameter()
 
     def requires(self):
-        feature_steps = [
-            FeatureHandling(feature_name=x) for x in self.features.split(',')
-        ]
+        feature_steps = [FeatureHandling(feature_name=x) for x in self.features.split(',')]
         return {
             'raw_data': TrainSet(),
             'folds': CreateTrainFolds(),
@@ -62,12 +64,20 @@ class ComposeDataset(luigi.Task):
             test_idx = in_file['test'][f'fold_{self.fold_idx}'].value
             return train_idx, test_idx
 
+    def _get_dtype(self, features):
+        if np.issubdtype(features.dtype, np.str):
+            return features.astype('S'), h5py.special_dtype(vlen=str)
+
+        return features, features.dtype
+
     def _write_dataset(self, label, features, target, out_file):
         grp = out_file.create_group(label)
+        features, dtype = self._get_dtype(features)
         grp.create_dataset(
             'features',
             features.shape,
             data=features,
+            dtype=dtype,
             compression='gzip',
             compression_opts=1,
         )
@@ -95,7 +105,7 @@ class ComposeDataset(luigi.Task):
             with h5py.File(self.output().path, 'w') as out_file:
                 self._write_dataset('train', train_set, train_set_target, out_file)
                 self._write_dataset('test', test_set, test_set_target, out_file)
-        except:  # pylint disable=bare-except
+        except:  # noqa pylint disable=bare-except
             os.remove(self.output().path)
             raise
 

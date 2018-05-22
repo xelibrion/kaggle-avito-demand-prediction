@@ -4,7 +4,7 @@ from sklearn.externals import joblib
 
 
 class RawFeatureValues(luigi.Task):
-    dataset = luigi.Parameter()
+    dataset = luigi.TaskParameter()
     feature_name = luigi.Parameter()
 
     def requires(self):
