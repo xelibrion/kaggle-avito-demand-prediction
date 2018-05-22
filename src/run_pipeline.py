@@ -37,10 +37,13 @@ if __name__ == '__main__':
     parser.add_argument('--folds', default=[1], action=ParseNumFolds)
     parser.add_argument('--features', default=','.join(PREDICTORS))
     parser.add_argument('--target', default='deal_probability')
+    parser.add_argument('--batch-size', type=int, default=64)
 
     args = parser.parse_args()
 
-    tasks = [TrainNNetOnFold(fold_idx=x - 1, target=args.target) for x in args.folds]
+    tasks = [
+        TrainNNetOnFold(fold_idx=x - 1, target=args.target, batch_size=args.batch_size) for x in args.folds
+    ]
     # tasks = [
     #     TrainOnFold(fold_idx=x - 1, features=args.features, target=args.target)
     #     for x in args.folds
