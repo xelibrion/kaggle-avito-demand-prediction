@@ -1,3 +1,4 @@
+import os
 import hashlib
 
 import numpy as np
@@ -90,11 +91,13 @@ class ComposeDataset(luigi.Task):
         test_set = features[test_idx]
         test_set_target = target_values[test_idx]
 
-        out_file = h5py.File(self.output().path, 'w')
-        self._write_dataset('train', train_set, train_set_target, out_file)
-        self._write_dataset('test', test_set, test_set_target, out_file)
-
-        out_file.close()
+        try:
+            with h5py.File(self.output().path, 'w') as out_file:
+                self._write_dataset('train', train_set, train_set_target, out_file)
+                self._write_dataset('test', test_set, test_set_target, out_file)
+        except:  # pylint disable=bare-except
+            os.remove(self.output().path)
+            raise
 
 
 class TrainOnFold(luigi.Task):
