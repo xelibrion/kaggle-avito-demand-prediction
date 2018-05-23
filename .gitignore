@@ -5,3 +5,4 @@ __pycache__
 /.venv
 *.tar
 logs
+/src/_features/

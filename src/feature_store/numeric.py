@@ -1,0 +1,60 @@
+import numpy as np
+import pandas as pd
+import luigi
+from luigi.util import requires
+from sklearn.externals import joblib
+
+from .core import ExtractFeature
+
+
+@requires(ExtractFeature)
+class MarkNullInstances(luigi.Task):
+    dataset = luigi.TaskParameter()
+    feature_name = luigi.Parameter()
+
+    def output(self):
+        return luigi.LocalTarget(f'_features/isnull_{self.feature_name}.pkl')
+
+    def run(self):
+        self.output().makedirs()
+
+        df = joblib.load(self.input().path)
+        df.iloc[:, 1] = pd.isnull(df.iloc[:, 1])
+
+        joblib.dump(df, self.output().path)
+
+
+@requires(ExtractFeature)
+class FillNaTransform(luigi.Task):
+    dataset = luigi.TaskParameter()
+    feature_name = luigi.Parameter()
+
+    fill_value = luigi.FloatParameter(default=-999)
+
+    def output(self):
+        return luigi.LocalTarget(f'_features/fillna_{self.feature_name}.pkl')
+
+    def run(self):
+        self.output().makedirs()
+
+        df = joblib.load(self.input().path)
+        df.iloc[:, 1] = df.iloc[:, 1].fillna(self.fill_value)
+
+        joblib.dump(df, self.output().path)
+
+
+@requires(ExtractFeature)
+class ApplyLogTransform(luigi.Task):
+    dataset = luigi.TaskParameter()
+    feature_name = luigi.Parameter()
+
+    def output(self):
+        return luigi.LocalTarget(f'_features/log_{self.feature_name}.pkl')
+
+    def run(self):
+        self.output().makedirs()
+
+        df = joblib.load(self.input().path)
+        df.iloc[:, 1] = np.log(df.iloc[:, 1] + 0.001)
+
+        joblib.dump(df, self.output().path)
