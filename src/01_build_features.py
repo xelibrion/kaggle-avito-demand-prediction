@@ -6,7 +6,7 @@ import logging
 import luigi
 from luigi.interface import setup_interface_logging
 from feature_store import (ExtractFeature, CorrectImagePath, ApplyLogTransform, MarkNullInstances,
-                           FillNaTransform)
+                           FillNaTransform, CreateFolds)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -25,6 +25,7 @@ class GenerateFeatures(luigi.WrapperTask):
         yield MarkNullInstances(dataset=TrainSet(), feature_name='price')
         yield FillNaTransform(dataset=TrainSet(), feature_name='price')
         yield ApplyLogTransform(dataset=TrainSet(), feature_name='price')
+        yield CreateFolds(dataset=TrainSet())
 
 
 if __name__ == '__main__':
