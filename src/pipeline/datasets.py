@@ -2,93 +2,104 @@ import os
 import hashlib
 
 import numpy as np
-import pandas as pd
-import luigi
 from sklearn.externals import joblib
+import luigi
 import h5py
-import xgboost as xgb
-
-from .input_data import TrainSet, WithImagesSet
-from .feature_eng.categorical import EncodeCategoryTrain
-from .feature_eng.paths import CorrectImagePath
-from .folds import CreateFolds
-from .feature_desc import CATEGORICAL
 
 
-class FeatureHandling(luigi.Task):
+class PrecomputedFeature(luigi.ExternalTask):
     feature_name = luigi.Parameter()
 
-    feature_processing_map = {'image': CorrectImagePath}
+    def output(self):
+        return luigi.LocalTarget(f'_features/{self.feature_name}.pkl')
 
-    def requires(self):
-        if self.feature_name in CATEGORICAL:
-            return EncodeCategoryTrain(self.feature_name)
 
-        task_cls = self.feature_processing_map[self.feature_name]
-        return task_cls(feature_name=self.feature_name, dataset=WithImagesSet(TrainSet()))
-        # return RawFeatureValues(feature_name=self.feature_name, dataset=TrainSet)
+class PrecomputedFold(luigi.ExternalTask):
+    fold_idx = luigi.IntParameter()
 
     def output(self):
-        return self.input()
+        return luigi.LocalTarget(f'_features/fold_{self.fold_idx}.h5')
 
 
-class TrainOnFold(luigi.Task):
+class ComposeDataset(luigi.Task):
     fold_idx = luigi.IntParameter()
-    features = luigi.Parameter()
+    features = luigi.Parameter(default='image_path')
     target = luigi.Parameter()
 
-    resources = {'train_concurrency': 1}
-
     def requires(self):
-        return ComposeDataset(
-            fold_idx=self.fold_idx,
-            features=self.features,
-            target_column=self.target,
-        )
+        features = self.features.split(',')
+        return {
+            'features': [PrecomputedFeature(x) for x in features],
+            'fold': PrecomputedFold(self.fold_idx),
+            'target': PrecomputedFeature(self.target)
+        }
 
     def output(self):
-        return luigi.LocalTarget(f'model_{self.fold_idx}.xgb')
+        hash_object = hashlib.md5(self.features.encode('utf-8'))
+        params_hash = hash_object.hexdigest()[:6]
 
-    def _get_input_data(self, label):
-        with h5py.File(self.input().path, 'r') as in_file:
-            features = in_file[label]['features'].value
-            target = in_file[label]['target'].value
-            return features, target
+        return luigi.LocalTarget(f'data_{self.fold_idx}_{params_hash}.h5')
+
+    def _load_features(self):
+        feature_sets = []
+        for f_task in self.input()['features']:
+            feature_df = joblib.load(f_task.path)
+            feature_sets.append(feature_df.iloc[:, 1])
+
+        return np.hstack(feature_sets)
+
+    def _get_train_test(self):
+        with h5py.File(self.input()['fold'].path, 'r') as in_file:
+            train_idx = in_file['train'].value
+            test_idx = in_file['test'].value
+            return train_idx, test_idx
+
+    def _get_dtype(self, features):
+        if np.issubdtype(features.dtype, np.str):
+            return features.astype('S'), h5py.special_dtype(vlen=str)
+
+        return features, features.dtype
+
+    def _write_dataset(self, label, features, target, out_file):
+        grp = out_file.create_group(label)
+        features, dtype = self._get_dtype(features)
+
+        grp.create_dataset(
+            'features',
+            features.shape,
+            data=features,
+            dtype=h5py.special_dtype(vlen=str),
+            compression='gzip',
+            compression_opts=1,
+        )
+        print(target.shape)
+        print(target[:10])
+
+        grp.create_dataset(
+            'target',
+            target.shape,
+            data=target,
+            compression='gzip',
+            compression_opts=1,
+        )
 
     def run(self):
-        features, target = self._get_input_data('train')
-        test_features, test_target = self._get_input_data('test')
+        features = self._load_features()
 
-        print(f"Features shape: {features.shape}")
+        target = joblib.load(self.input()['target'].path)
+        target_values = target.iloc[:, 1].values.astype(float)
 
-        dtrain = xgb.DMatrix(features, label=target)
-        dtest = xgb.DMatrix(test_features, label=test_target)
+        train_idx, test_idx = self._get_train_test()
 
-        param = [
-            ('max_depth', 6),
-            ('objective', 'reg:linear'),
-            ('subsample', 0.8),
-            ('tree_method', 'exact'),
-            # # learn rate
-            ('eta', 0.1),
-            ('silent', 1),
+        train_set = features[train_idx]
+        train_set_target = target_values[train_idx]
+        test_set = features[test_idx]
+        test_set_target = target_values[test_idx]
 
-            #  of multiple eval metrics the last one is used for early stop
-            ('eval_metric', 'rmse'),
-        ]
-
-        watchlist = [
-            (dtrain, 'train'),
-            (dtest, 'test'),
-        ]
-
-        bst = xgb.train(
-            param,
-            dtrain,
-            100,
-            watchlist,
-            verbose_eval=2,
-            early_stopping_rounds=10,
-        )
-        # bst.dump_model('./{}.dump'.format(model_name), with_stats=True)
-        bst.save_model(self.output().path)
+        try:
+            with h5py.File(self.output().path, 'w') as out_file:
+                self._write_dataset('train', train_set, train_set_target, out_file)
+                self._write_dataset('test', test_set, test_set_target, out_file)
+        except:  # noqa pylint disable=bare-except
+            os.remove(self.output().path)
+            raise

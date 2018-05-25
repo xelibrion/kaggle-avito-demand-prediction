@@ -5,16 +5,13 @@ import logging
 
 import luigi
 from luigi.interface import setup_interface_logging
-from pipeline import TrainOnFold, TrainNNetOnFold
+from pipeline import TrainNNetOnFold
 
-logging.basicConfig(
-    level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
 logging.getLogger("luigi.scheduler").setLevel(logging.WARNING)
 
-PREDICTORS = [
-    'region', 'parent_category_name', 'category_name', 'param_1', 'param_2', 'user_type'
-]
+PREDICTORS = ['region', 'parent_category_name', 'category_name', 'param_1', 'param_2', 'user_type']
 
 
 class ParseNumFolds(argparse.Action):

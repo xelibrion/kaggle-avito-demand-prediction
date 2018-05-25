@@ -20,16 +20,13 @@ class CreateFolds(luigi.Task):
         out_path = self.output()[fold_id].path
 
         with h5py.File(out_path, 'w') as out_file:
-            train_grp = out_file.create_group('train')
-            test_grp = out_file.create_group('test')
-
-            train_grp.create_dataset(
-                f'fold_{fold_id}',
+            out_file.create_dataset(
+                'train',
                 train_idx.shape,
                 data=train_idx,
             )
-            test_grp.create_dataset(
-                f'fold_{fold_id}',
+            out_file.create_dataset(
+                'test',
                 test_idx.shape,
                 data=test_idx,
             )
