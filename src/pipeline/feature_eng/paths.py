@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
 import luigi
+from luigi.util import inherits
 from sklearn.externals import joblib
 
+from .core import CommonParams
 
+
+@inherits(CommonParams)
 class CorrectImagePath(luigi.Task):
-    dataset = luigi.TaskParameter()
-    feature_name = luigi.Parameter()
-
     def requires(self):
         return self.dataset
 

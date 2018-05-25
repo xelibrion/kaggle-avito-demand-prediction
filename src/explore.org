@@ -1,0 +1,43 @@
+#+BEGIN_SRC ipython
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#+END_SRC
+
+#+BEGIN_SRC ipython
+df = pd.read_csv('../input/train.csv')
+#+END_SRC
+
+#+BEGIN_SRC ipython
+df.info()
+#+END_SRC
+
+#+BEGIN_SRC ipython
+CATEGORICAL = [
+      'region', 'city', 'parent_category_name', 'category_name', 'param_1', 'param_2', 'param_3',
+      'user_type'
+  ]
+#+END_SRC
+
+Unique values in categories
+#+BEGIN_SRC ipython :results replace
+df[CATEGORICAL].nunique().sort_values()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+# Out[15]:
+#+BEGIN_EXAMPLE
+  user_type                  3
+  parent_category_name       9
+  region                    28
+  category_name             47
+  param_2                  271
+  param_1                  371
+  param_3                 1219
+  city                    1733
+  dtype: int64
+#+END_EXAMPLE
+#+end_example

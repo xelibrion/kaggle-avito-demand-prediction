@@ -3,10 +3,16 @@ import luigi
 from sklearn.externals import joblib
 
 
+class CommonParams(luigi.Task):
+    dataset = luigi.TaskParameter()
+    id_column = luigi.Parameter()
+    feature_name = luigi.Parameter()
+
+
 class ExtractFeature(luigi.Task):
     dataset = luigi.TaskParameter()
 
-    id_column = luigi.Parameter(default='item_id')
+    id_column = luigi.Parameter()
     feature_name = luigi.Parameter()
 
     def requires(self):
