@@ -28,7 +28,7 @@ class AllCategoryValues(luigi.Task):
         test_vals = df_test[self.feature_name].dropna().unique()
         vals = set(train_vals).union(set(test_vals))
 
-        with open(self.output().path, 'w') as out_file:
+        with open(self.output().path, 'w', encoding='utf-8') as out_file:
             for val in vals:
                 out_file.write(val)
                 out_file.write('\n')
@@ -50,7 +50,7 @@ class OneHotEncode(luigi.Task):
         return luigi.LocalTarget(f'_features/{self.feature_name}_ohe.pkl')
 
     def _cat_values(self):
-        with open(self.input()['cat_values'].path) as cat_file:
+        with open(self.input()['cat_values'].path, encoding='utf-8') as cat_file:
             return cat_file.readlines()
 
     def run(self):
