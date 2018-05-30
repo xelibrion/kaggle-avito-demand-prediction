@@ -34,12 +34,8 @@ class AllCategoryValues(luigi.Task):
                 out_file.write('\n')
 
 
+@inherits(CommonParams)
 class OneHotEncode(luigi.Task):
-    dataset = luigi.TaskParameter()
-
-    id_column = luigi.Parameter()
-    feature_name = luigi.Parameter()
-
     def requires(self):
         return {
             'cat_values': self.clone(AllCategoryValues),

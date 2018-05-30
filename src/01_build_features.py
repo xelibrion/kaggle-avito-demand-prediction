@@ -5,8 +5,8 @@ import logging
 
 import luigi
 from luigi.interface import setup_interface_logging
-from feature_store import (CorrectImagePath, ApplyLogTransform, MarkNullInstances, FillNaTransform,
-                           CreateFolds, TrainSet, OneHotEncode)
+from feature_store import (CorrectImagePath, ApplyLogTransform, MarkNullInstances, FillNaTransform, CreateFolds,
+                           TrainSet, OneHotEncode, CharEncode)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -28,6 +28,7 @@ class GenerateFeatures(luigi.WrapperTask):
         yield self.clone(OneHotEncode, feature_name='user_type')
         yield self.clone(OneHotEncode, feature_name='parent_category_name')
         yield self.clone(OneHotEncode, feature_name='region')
+        yield self.clone(CharEncode, feature_name='description')
 
 
 if __name__ == '__main__':
