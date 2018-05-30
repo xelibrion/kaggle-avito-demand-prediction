@@ -25,4 +25,4 @@ class ExtractFeature(luigi.Task):
         self.output().makedirs()
 
         df = pd.read_csv(self.input().path, usecols=[self.id_column, self.feature_name])
-        joblib.dump(df, self.output().path)
+        joblib.dump(df, self.output().path, compress=1)
