@@ -12,7 +12,7 @@ class CharEncode(luigi.Task):
     def output(self):
         return {
             'result': luigi.LocalTarget(f'_features/{self.feature_name}_char_enc.pkl'),
-            'vocabulary': luigi.LocalTarget(f'_features/{self.feature_name}_char_enc_vocabulary.txt'),
+            'vocabulary': luigi.LocalTarget(f'_reference/{self.feature_name}_char_enc_vocabulary.txt'),
         }
 
     def encode_string(self, text, vocabulary):

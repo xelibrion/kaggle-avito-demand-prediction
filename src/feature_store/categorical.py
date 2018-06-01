@@ -16,7 +16,7 @@ class AllCategoryValues(luigi.Task):
         }
 
     def output(self):
-        return luigi.LocalTarget(f'_features/{self.feature_name}.txt')
+        return luigi.LocalTarget(f'_reference/{self.feature_name}.txt')
 
     def run(self):
         self.output().makedirs()
