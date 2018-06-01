@@ -1,60 +1,64 @@
 import pandas as pd
 import luigi
+from luigi.util import inherits
 from sklearn.externals import joblib
 
-from ..input_data import TrainSet, TestSet
+from .core import ExtractFeature, CommonParams
+from .input_data import TrainSet, TestSet
 
 
-class GetCatValues(luigi.Task):
-    category_name = luigi.Parameter()
-
+@inherits(CommonParams)
+class AllCategoryValues(luigi.Task):
     def requires(self):
-        return {'train': TrainSet(), 'test': TestSet()}
+        return {
+            'train': self.clone(ExtractFeature, dataset=TrainSet()),
+            'test': self.clone(ExtractFeature, dataset=TestSet()),
+        }
 
     def output(self):
-        cls = self.__class__.__name__.lower()
-        return luigi.LocalTarget(f'.cache/{cls}_{self.category_name}.txt')
+        return luigi.LocalTarget(f'_reference/{self.feature_name}.txt')
 
     def run(self):
         self.output().makedirs()
 
-        df_train = pd.read_csv(self.input()['train'].path)
-        df_test = pd.read_csv(self.input()['test'].path)
+        df_train = joblib.load(self.input()['train'].path)
+        df_test = joblib.load(self.input()['test'].path)
 
-        train_vals = df_train[self.category_name].dropna().unique()
-        test_vals = df_test[self.category_name].dropna().unique()
+        train_vals = df_train[self.feature_name].dropna().unique()
+        test_vals = df_test[self.feature_name].dropna().unique()
         vals = set(train_vals).union(set(test_vals))
 
-        with open(self.output().path, 'w') as out_file:
+        with open(self.output().path, 'w', encoding='utf-8') as out_file:
             for val in vals:
                 out_file.write(val)
                 out_file.write('\n')
 
 
-class EncodeCategoryTrain(luigi.Task):
-    category_name = luigi.Parameter()
-
+@inherits(CommonParams)
+class OneHotEncode(luigi.Task):
     def requires(self):
         return {
-            'dataset': TrainSet(),
-            'cat_values': GetCatValues(category_name=self.category_name)
+            'cat_values': self.clone(AllCategoryValues),
+            'feature': self.clone(ExtractFeature),
         }
 
     def output(self):
-        return luigi.LocalTarget(f'.cache/encoded_train_{self.category_name}.pkl')
+        return luigi.LocalTarget(f'_features/{self.feature_name}_ohe.pkl')
 
     def _cat_values(self):
-        with open(self.input()['cat_values'].path) as cat_file:
+        with open(self.input()['cat_values'].path, encoding='utf-8') as cat_file:
             return cat_file.readlines()
 
     def run(self):
         self.output().makedirs()
 
-        df = pd.read_csv(self.input()['dataset'].path)
+        df = joblib.load(self.input()['feature'].path)
 
-        df[self.category_name] = pd.Categorical(
-            df[self.category_name],
+        df[self.feature_name] = pd.Categorical(
+            df[self.feature_name],
             categories=self._cat_values(),
         )
-        df_enc = pd.get_dummies(df[self.category_name])
-        joblib.dump(df_enc, self.output().path)
+        df_enc = pd.get_dummies(df[[self.feature_name]])
+
+        df_out = df[[self.id_column]].join(df_enc)
+        joblib.dump(df_out, self.output().path)

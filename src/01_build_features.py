@@ -5,8 +5,8 @@ import logging
 
 import luigi
 from luigi.interface import setup_interface_logging
-from feature_store import (CorrectImagePath, ApplyLogTransform, MarkNullInstances, FillNaTransform, CreateFolds,
-                           TrainSet, OneHotEncode, CharEncode)
+from pipeline.feature_eng import (CorrectImagePath, ApplyLogTransform, MarkNullInstances, FillNaTransform, CreateFolds,
+                                  TrainSet, OneHotEncode, CharEncode)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
