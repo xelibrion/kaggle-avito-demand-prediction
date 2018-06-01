@@ -13,7 +13,7 @@ class MarkNullInstances(luigi.Task):
     feature_name = luigi.Parameter()
 
     def output(self):
-        return luigi.LocalTarget(f'_features/isnull_{self.feature_name}.pkl')
+        return luigi.LocalTarget(f'_features/{self.feature_name}_isnull.pkl')
 
     def run(self):
         self.output().makedirs()
@@ -32,7 +32,7 @@ class FillNaTransform(luigi.Task):
     fill_value = luigi.FloatParameter(default=-999)
 
     def output(self):
-        return luigi.LocalTarget(f'_features/fillna_{self.feature_name}.pkl')
+        return luigi.LocalTarget(f'_features/{self.feature_name}_fillna.pkl')
 
     def run(self):
         self.output().makedirs()
@@ -49,7 +49,7 @@ class ApplyLogTransform(luigi.Task):
     feature_name = luigi.Parameter()
 
     def output(self):
-        return luigi.LocalTarget(f'_features/log_{self.feature_name}.pkl')
+        return luigi.LocalTarget(f'_features/{self.feature_name}_log.pkl')
 
     def run(self):
         self.output().makedirs()
