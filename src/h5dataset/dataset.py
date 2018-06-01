@@ -1,10 +1,25 @@
+import numpy as np
 import h5py
 
 
 def dump(payload_dict, path):
     with h5py.File(path, 'w') as out_file:
         for group_name, data in payload_dict.items():
-            out_file.create_dataset(group_name, shape=data.shape, data=data)
+            if np.issubdtype(data.dtype, np.str):
+                dtype = h5py.special_dtype(vlen=str)
+                out_file.create_dataset(
+                    group_name,
+                    dtype=dtype,
+                    shape=data.shape,
+                    data=data.astype('S'),
+                )
+            else:
+                out_file.create_dataset(
+                    group_name,
+                    dtype=data.dtype,
+                    shape=data.shape,
+                    data=data,
+                )
 
 
 def load(path, one_or_many_datasets):
