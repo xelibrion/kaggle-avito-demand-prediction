@@ -45,3 +45,17 @@ class DatasetTests(unittest.TestCase):
 
             strings_l = load(out_path, 'train')
             np.testing.assert_array_equal(strings, strings_l)
+
+    def test_should_handle_mixed_datasets(self):
+        with tempfile.NamedTemporaryFile() as target_file:
+            out_path = target_file.name
+
+            lengths = np.random.randint(low=1, high=2000, size=(100))
+            strings = np.vectorize(random_string)(lengths)
+            ints = np.ones_like(strings)
+            train = np.hstack((strings, ints))
+
+            dump({'train': train}, out_path)
+
+            train_l = load(out_path, 'train')
+            np.testing.assert_array_equal(train, train_l)
