@@ -10,7 +10,8 @@ from sklearn.externals import joblib
 import luigi
 from luigi.interface import setup_interface_logging
 from luigi.util import requires
-from h5dataset import h5_dump, h5_load
+
+from pipeline.h5dataset import h5_load
 
 
 class PrecomputedFeature(luigi.ExternalTask):
@@ -24,12 +25,13 @@ class PrecomputedFold(luigi.ExternalTask):
     fold_id = luigi.IntParameter()
 
     def output(self):
-        return luigi.LocalTarget(f'_features/fold_{self.fold_id}.h5')
+        return luigi.LocalTarget(f'_folds/fold_{self.fold_id}.h5')
 
 
 class FilterFeatureToFold(luigi.Task):
     feature_name = luigi.Parameter()
     fold_id = luigi.IntParameter()
+    subset = luigi.Parameter()
 
     def requires(self):
         return {
@@ -38,16 +40,23 @@ class FilterFeatureToFold(luigi.Task):
         }
 
     def output(self):
-        return luigi.LocalTarget(f'_folds/{self.feature_name}_{self.fold_id}.pkl')
+        return luigi.LocalTarget(f'_feature_folds/{self.feature_name}_{self.fold_id}_{self.subset}.pkl')
 
     def run(self):
+        self.output().makedirs()
+
         df = joblib.load(self.input()['feature'].path)
+        subset_idx = h5_load(self.input()['fold'].path, self.subset)
+
+        joblib.dump(df.iloc[subset_idx], self.output().path)
 
 
 class ComposeDataset(luigi.Task):
-    fold_id = luigi.IntParameter()
     features = luigi.Parameter()
     target = luigi.Parameter()
+
+    fold_id = luigi.IntParameter()
+    subset = luigi.Parameter()
 
     def requires(self):
         features = self.features.split(',')
@@ -60,7 +69,6 @@ class ComposeDataset(luigi.Task):
         pass
 
 
-@requires(ComposeDataset)
 class TrainNNetOnFold(luigi.Task):
     features = luigi.Parameter()
     target = luigi.Parameter()
@@ -71,6 +79,12 @@ class TrainNNetOnFold(luigi.Task):
     bootstrap_batches = luigi.IntParameter(default=100)
 
     resources = {'train_concurrency': 1}
+
+    def requires(self):
+        return {
+            'train': self.clone(ComposeDataset, subset='train'),
+            'val': self.clone(ComposeDataset, subset='val'),
+        }
 
     def run(self):
 
