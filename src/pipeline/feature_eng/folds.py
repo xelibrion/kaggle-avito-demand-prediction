@@ -1,8 +1,7 @@
-import itertools
 import pandas as pd
 import luigi
 from sklearn.model_selection import KFold
-from sklearn.externals import joblib
+from ..h5dataset import h5_dump
 
 
 class CreateFolds(luigi.Task):
@@ -13,11 +12,7 @@ class CreateFolds(luigi.Task):
         return self.dataset
 
     def output(self):
-        params = itertools.product(
-            range(self.num_folds),
-            ['train', 'val'],
-        )
-        return [luigi.LocalTarget(f'_folds/fold_{fold_id}_{label}.pkl') for fold_id, label in params]
+        return [luigi.LocalTarget(f'_folds/fold_{fold_id}.h5') for fold_id in range(self.num_folds)]
 
     def run(self):
         for out in self.output():
@@ -26,8 +21,9 @@ class CreateFolds(luigi.Task):
         df = pd.read_csv(self.input().path)
         folds = KFold(n_splits=self.num_folds, shuffle=True, random_state=0)
 
-        for fold_id, (train_idx, test_idx) in enumerate(folds.split(df)):
-            train_path = self.output()[fold_id * 2].path
-            val_path = self.output()[fold_id * 2 + 1].path
-            joblib.dump(train_idx, train_path, compress=1)
-            joblib.dump(test_idx, val_path, compress=1)
+        for fold_id, (train_idx, val_idx) in enumerate(folds.split(df)):
+            out_path = self.output()[fold_id].path
+            h5_dump({
+                'train': train_idx,
+                'val': val_idx,
+            }, out_path)

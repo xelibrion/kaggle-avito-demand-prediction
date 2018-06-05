@@ -12,6 +12,8 @@ def dump(payload_dict, path):
                     dtype=dtype,
                     shape=data.shape,
                     data=data.astype('S'),
+                    compression='gzip',
+                    compression_opts=1,
                 )
             else:
                 out_file.create_dataset(
@@ -19,6 +21,8 @@ def dump(payload_dict, path):
                     dtype=data.dtype,
                     shape=data.shape,
                     data=data,
+                    compression='gzip',
+                    compression_opts=1,
                 )
 
 
