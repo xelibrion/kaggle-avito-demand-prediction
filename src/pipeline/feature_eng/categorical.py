@@ -47,7 +47,7 @@ class OneHotEncode(luigi.Task):
 
     def _cat_values(self):
         with open(self.input()['cat_values'].path, encoding='utf-8') as cat_file:
-            return cat_file.readlines()
+            return [x.strip('\n') for x in cat_file.readlines()]
 
     def run(self):
         self.output().makedirs()
