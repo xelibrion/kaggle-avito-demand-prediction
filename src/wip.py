@@ -3,15 +3,12 @@
 import argparse
 import logging
 
-import numpy as np
 import pandas as pd
-from sklearn.externals import joblib
-
 import luigi
 from luigi.interface import setup_interface_logging
-from luigi.util import requires
 
-from pipeline.h5dataset import h5_load
+from sklearn.externals import joblib
+from pipeline.h5dataset import h5_load, h5_dump
 
 
 class PrecomputedFeature(luigi.ExternalTask):
@@ -33,6 +30,8 @@ class FilterFeatureToFold(luigi.Task):
     fold_id = luigi.IntParameter()
     subset = luigi.Parameter()
 
+    id_column = luigi.Parameter()
+
     def requires(self):
         return {
             'feature': self.clone(PrecomputedFeature),
@@ -48,7 +47,8 @@ class FilterFeatureToFold(luigi.Task):
         df = joblib.load(self.input()['feature'].path)
         subset_idx = h5_load(self.input()['fold'].path, self.subset)
 
-        joblib.dump(df.iloc[subset_idx], self.output().path)
+        subset_df = df.iloc[subset_idx].drop(self.id_column, axis=1)
+        joblib.dump(subset_df, self.output().path)
 
 
 class ComposeDataset(luigi.Task):
@@ -58,21 +58,39 @@ class ComposeDataset(luigi.Task):
     fold_id = luigi.IntParameter()
     subset = luigi.Parameter()
 
+    id_column = luigi.Parameter()
+
     def requires(self):
         features = self.features.split(',')
         return {
             'features': [self.clone(FilterFeatureToFold, feature_name=x) for x in features],
-            'target': PrecomputedFeature(self.target)
+            'target': self.clone(FilterFeatureToFold, feature_name=self.target)
         }
 
+    def output(self):
+        digest = '000000'
+        return luigi.LocalTarget(f'_feature_folds/combined_{self.fold_id}_{self.subset}_{digest}.h5')
+
     def run(self):
-        pass
+        self.output().makedirs()
+
+        dfs = [joblib.load(x.path) for x in self.input()['features']]
+        df = pd.concat(dfs, axis=1, join='inner')
+
+        target_df = joblib.load(self.input()['target'].path)
+
+        h5_dump({
+            'features': df.values,
+            'target': target_df.values,
+        },
+                self.output().path)
 
 
 class TrainNNetOnFold(luigi.Task):
     features = luigi.Parameter()
     target = luigi.Parameter()
     fold_id = luigi.IntParameter()
+    id_column = luigi.IntParameter(default='item_id')
 
     lr = luigi.FloatParameter(default=0.001)
     batch_size = luigi.IntParameter(default=32)
@@ -87,12 +105,13 @@ class TrainNNetOnFold(luigi.Task):
         }
 
     def run(self):
+        features, target = h5_load(self.input()['train'].path, ['features', 'target'])
+        print(features.shape)
+        print(target.shape)
 
-        train_images, train_targets = self._get_input_data('train')
-        test_images, test_targets = self._get_input_data('test')
-
-        print(train_images[:5])
-        print(type(train_images))
+        val_features, val_target = h5_load(self.input()['val'].path, ['features', 'target'])
+        print(val_features.shape)
+        print(val_target.shape)
 
 
 def main():
