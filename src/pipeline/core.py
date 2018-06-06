@@ -1,3 +1,4 @@
+import hashlib
 import pandas as pd
 import luigi
 from sklearn.externals import joblib
@@ -61,7 +62,9 @@ class ComposeDataset(luigi.Task):
         }
 
     def output(self):
-        digest = '000000'
+        hash_content = f'{self.features}|{self.target}|{self.id_column}'
+        hash_object = hashlib.md5(hash_content.encode('utf-8'))
+        digest = hash_object.hexdigest()[:6]
         return luigi.LocalTarget(f'_feature_folds/combined_{self.fold_id}_{self.subset}_{digest}.h5')
 
     def run(self):
