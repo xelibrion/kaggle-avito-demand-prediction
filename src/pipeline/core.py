@@ -1,14 +1,7 @@
-#!/usr/bin/env python
-
-import argparse
-import logging
-
 import pandas as pd
 import luigi
-from luigi.interface import setup_interface_logging
-
 from sklearn.externals import joblib
-from pipeline.h5dataset import h5_load, h5_dump
+from .h5dataset import h5_dump, h5_load
 
 
 class PrecomputedFeature(luigi.ExternalTask):
@@ -84,61 +77,3 @@ class ComposeDataset(luigi.Task):
             'target': target_df.values,
         },
                 self.output().path)
-
-
-class TrainNNetOnFold(luigi.Task):
-    features = luigi.Parameter()
-    target = luigi.Parameter()
-    fold_id = luigi.IntParameter()
-    id_column = luigi.IntParameter(default='item_id')
-
-    lr = luigi.FloatParameter(default=0.001)
-    batch_size = luigi.IntParameter(default=32)
-    bootstrap_batches = luigi.IntParameter(default=100)
-
-    resources = {'train_concurrency': 1}
-
-    def requires(self):
-        return {
-            'train': self.clone(ComposeDataset, subset='train'),
-            'val': self.clone(ComposeDataset, subset='val'),
-        }
-
-    def run(self):
-        features, target = h5_load(self.input()['train'].path, ['features', 'target'])
-        print(features.shape)
-        print(target.shape)
-
-        val_features, val_target = h5_load(self.input()['val'].path, ['features', 'target'])
-        print(val_features.shape)
-        print(val_target.shape)
-
-
-def main():
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    logging.getLogger("luigi.scheduler").setLevel(logging.WARNING)
-
-    setup_interface_logging.has_run = True
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--fold', default=1)
-    parser.add_argument('--features', default='user_type_ohe,region_ohe')
-    parser.add_argument('--target', default='deal_probability_log')
-    parser.add_argument('--batch-size', type=int, default=64)
-
-    args = parser.parse_args()
-
-    tasks = [
-        TrainNNetOnFold(
-            fold_id=args.fold - 1,
-            features=args.features,
-            target=args.target,
-            batch_size=args.batch_size,
-        ),
-    ]
-
-    luigi.build(tasks, workers=12, local_scheduler=True)
-
-
-if __name__ == '__main__':
-    main()
