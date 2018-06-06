@@ -1,8 +1,17 @@
+import os
 import numpy as np
 import h5py
 
 
 def dump(payload_dict, path):
+    try:
+        _dump(payload_dict, path)
+    except:  # noqa pylint disable=bare-except
+        os.remove(path)
+        raise
+
+
+def _dump(payload_dict, path):
     with h5py.File(path, 'w') as out_file:
         for group_name, data in payload_dict.items():
             if np.issubdtype(data.dtype, np.str):
