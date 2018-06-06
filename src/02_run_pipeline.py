@@ -6,8 +6,15 @@ import logging
 import luigi
 from luigi.interface import setup_interface_logging
 
+import torch
+import torch.nn
+import torch.backends.cudnn as cudnn
+import torch.optim
+
 from pipeline.h5dataset import h5_load
 from pipeline.core import ComposeDataset
+from pipeline.nnet_mixed.bootstrap import create_data_pipeline, create_model, gpu_accelerated
+from pipeline.nnet_images import Tuner
 
 
 class ParseNumFolds(argparse.Action):
@@ -42,13 +49,37 @@ class TrainNNetOnFold(luigi.Task):
         }
 
     def run(self):
-        features, target = h5_load(self.input()['train'].path, ['features', 'target'])
-        print(features.shape)
-        print(target.shape)
+        train_features, train_targets = h5_load(self.input()['train'].path, ['features', 'target'])
+        print(train_features.shape)
+        print(train_targets.shape)
 
-        val_features, val_target = h5_load(self.input()['val'].path, ['features', 'target'])
+        val_features, val_targets = h5_load(self.input()['val'].path, ['features', 'target'])
         print(val_features.shape)
-        print(val_target.shape)
+        print(val_targets.shape)
+
+        cudnn.benchmark = True
+
+        criterion = torch.nn.MSELoss()
+        model, params = create_model()
+        model, criterion = gpu_accelerated(model, criterion)
+
+        optimizer = torch.optim.Adam(params, self.lr)
+
+        train_loader, val_loader = create_data_pipeline(
+            (train_features, train_targets),
+            (val_features, val_targets),
+            self.batch_size,
+        )
+
+        tuner = Tuner(
+            model,
+            criterion,
+            optimizer,
+            bootstrap_batches=self.bootstrap_batches,
+            tag='fold_{}'.format(0),
+        )
+
+        tuner.run(train_loader, val_loader)
 
 
 if __name__ == '__main__':
@@ -59,7 +90,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--folds', default=[1], action=ParseNumFolds)
-    parser.add_argument('--features', default='region_ohe,user_type_ohe')
+    parser.add_argument('--features', default='description_char_enc')
     parser.add_argument('--target', default='deal_probability_log')
     parser.add_argument('--batch-size', type=int, default=64)
 

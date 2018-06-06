@@ -1,9 +1,6 @@
 import collections
-import json
-import os
 import shutil
 import time
-from datetime import datetime
 
 import numpy as np
 import torch
@@ -76,10 +73,8 @@ class Tuner:
         print("=> loaded checkpoint '{}' (epoch {})".format(checkpoint_file, checkpoint['epoch']))
 
     def save_checkpoint(self, validation_score, epoch):
-        checkpoint_filename = ('checkpoint.pth.tar'
-                               if not self.tag else 'checkpoint_{}.pth.tar'.format(self.tag))
-        best_model_filename = ('model_best.pth.tar'
-                               if not self.tag else 'model_best_{}.pth.tar'.format(self.tag))
+        checkpoint_filename = ('checkpoint.pth.tar' if not self.tag else 'checkpoint_{}.pth.tar'.format(self.tag))
+        best_model_filename = ('model_best.pth.tar' if not self.tag else 'model_best_{}.pth.tar'.format(self.tag))
 
         is_best = validation_score > self.best_score
         self.best_score = max(validation_score, self.best_score)
