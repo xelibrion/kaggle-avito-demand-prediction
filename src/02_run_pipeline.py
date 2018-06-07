@@ -30,6 +30,13 @@ class ParseNumFolds(argparse.Action):
             namespace.folds = [int(values)]
 
 
+class Vocabulary(luigi.ExternalTask):
+    feature_name = luigi.Parameter()
+
+    def output(self):
+        return luigi.LocalTarget(f'_reference/{self.feature_name}_vocabulary.json')
+
+
 class TrainNNetOnFold(luigi.Task):
     features = luigi.Parameter()
     target = luigi.Parameter()
@@ -46,6 +53,7 @@ class TrainNNetOnFold(luigi.Task):
         return {
             'train': self.clone(ComposeDataset, subset='train'),
             'val': self.clone(ComposeDataset, subset='val'),
+            'voc_description': self.clone(Vocabulary, feature_name='description_char_enc'),
         }
 
     def run(self):
