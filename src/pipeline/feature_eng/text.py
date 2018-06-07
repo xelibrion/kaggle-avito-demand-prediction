@@ -7,12 +7,17 @@ from sklearn.externals import joblib
 from .core import ExtractFeature
 
 
+def json_dump(obj, path):
+    with open(path, 'w', encoding='utf-8') as out_file:
+        json.dump(obj, out_file)
+
+
 @requires(ExtractFeature)
 class CharEncode(luigi.Task):
     def output(self):
         return {
             'result': luigi.LocalTarget(f'_features/{self.feature_name}_char_enc.pkl'),
-            'vocabulary': luigi.LocalTarget(f'_reference/{self.feature_name}_char_enc_vocabulary.txt'),
+            'vocabulary': luigi.LocalTarget(f'_reference/{self.feature_name}_char_enc_vocabulary.json'),
         }
 
     def encode_string(self, text, vocabulary):
@@ -34,5 +39,4 @@ class CharEncode(luigi.Task):
         df[self.feature_name] = df[self.feature_name].apply(lambda x: list(self.encode_string(x, vocabulary)))
 
         joblib.dump(df, self.output()['result'].path, compress=1)
-        with open(self.output()['vocabulary'].path, 'w', encoding='utf-8') as out_file:
-            json.dump(vocabulary, out_file)
+        json_dump(vocabulary, self.output()['vocabulary'].path)
