@@ -35,6 +35,9 @@ class CharEncode(luigi.Task):
 
         df = joblib.load(self.input().path)
 
+        max_text_length = int(df[self.feature_name].str.len().max())
+        print(f"Projected matrix dimensions: {df.shape[0]} x {max_text_length}")
+
         vocabulary = {}
         df[self.feature_name] = df[self.feature_name].apply(lambda x: list(self.encode_string(x, vocabulary)))
 
