@@ -1,5 +1,6 @@
 import json
 
+import pandas as pd
 import luigi
 from luigi.util import requires
 from sklearn.externals import joblib
@@ -40,6 +41,9 @@ class CharEncode(luigi.Task):
 
         vocabulary = {}
         df[self.feature_name] = df[self.feature_name].apply(lambda x: list(self.encode_string(x, vocabulary)))
+
+        enc_df = df[self.feature_name].apply(lambda x: pd.Series(x, dtype='int16'))
+        df = df[[self.id_column]].join(enc_df)
 
         joblib.dump(df, self.output()['result'].path, compress=1)
         json_dump(vocabulary, self.output()['vocabulary'].path)
