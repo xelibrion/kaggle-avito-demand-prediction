@@ -91,10 +91,15 @@ class CharEncode(luigi.Task):
         encoded_series = p.map(encode_series, input_pairs)
         print(encoded_series[0].head())
 
-        enc_dfs = [x.apply(lambda x: pd.Series(x, dtype='int16')) for x in encoded_series[:1]]
-        print(enc_dfs[0].info())
+        enc_dfs = []
+        for x in encoded_series:
+            df = x.apply(lambda x: pd.Series(x, dtype='int16')).to_sparse()
+            print(df.info())
+            enc_dfs.append(df)
+
         enc_df = pd.concat(enc_dfs)
-        # df = df[[self.id_column]].join(enc_df)
+        print(enc_df.info())
+        df = df[[self.id_column]].join(enc_df)
 
         joblib.dump(enc_df, self.output()['result'].path, compress=1)
         json_dump(vocabulary, self.output()['vocabulary'].path)
