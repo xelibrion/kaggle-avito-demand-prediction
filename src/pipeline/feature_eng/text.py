@@ -41,7 +41,7 @@ def merge_vocabularies(one, other):
 
 
 def encode_series(input_tuple):
-    s_feature, vocabulary = input_tuple
+    s_feature, vocabulary, expected_length = input_tuple
 
     def encode_string(text):
         if not isinstance(text, str):
@@ -49,7 +49,11 @@ def encode_series(input_tuple):
 
         return [vocabulary[ch] for ch in text]
 
-    return s_feature.apply(encode_string)
+    def pad_list(encoded_text):
+        pad_length = expected_length - len(encoded_text)
+        return encoded_text + [np.nan for _ in range(pad_length)]
+
+    return s_feature.apply(encode_string).apply(pad_list)
 
 
 @requires(ExtractFeature)
@@ -85,11 +89,10 @@ class CharEncode(luigi.Task):
         vocabulary = reduce(merge_vocabularies, vocabulary_candidates, {})
         print(f"Vocabulary length: {len(vocabulary)}")
 
-        input_pairs = list(itertools.product(subsets, [vocabulary]))
-        assert len(input_pairs) == self.num_chunks, f"Expected {len(input_pairs)} to equal {self.num_chunks}"
+        input_tuples = list(itertools.product(subsets, [vocabulary], [max_text_length]))
+        assert len(input_tuples) == self.num_chunks, f"Expected {len(input_tuples)} to equal {self.num_chunks}"
 
-        encoded_series = p.map(encode_series, input_pairs)
-        print(encoded_series[0].head())
+        encoded_series = p.map(encode_series, input_tuples)
 
         enc_dfs = []
         for x in encoded_series:
