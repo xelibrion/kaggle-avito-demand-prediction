@@ -56,6 +56,8 @@ def encode_series(input_tuple):
 class CharEncode(luigi.Task):
 
     resources = {'concurrency': 1}
+
+    num_chunks = luigi.IntParameter(default=24)
     pool_size = luigi.IntParameter(default=12)
 
     def output(self):
@@ -73,9 +75,9 @@ class CharEncode(luigi.Task):
         max_text_length = int(df[self.feature_name].str.len().max())
         print(f"Projected matrix dimensions: {df.shape[0]} x {max_text_length}")
 
-        idx_ranges = np.array_split(df.index, self.pool_size)
+        idx_ranges = np.array_split(df.index, self.num_chunks)
         subsets = list(map(lambda x: df.loc[x, self.feature_name], idx_ranges))
-        assert len(subsets) == self.pool_size, f"Expected {len(subsets)} to equal {self.pool_size}"
+        assert len(subsets) == self.num_chunks, f"Expected {len(subsets)} to equal {self.num_chunks}"
 
         p = Pool(self.pool_size)
         vocabulary_candidates = p.map(build_vocabulary, subsets)
@@ -84,12 +86,14 @@ class CharEncode(luigi.Task):
         print(f"Vocabulary length: {len(vocabulary)}")
 
         input_pairs = list(itertools.product(subsets, [vocabulary]))
-        assert len(input_pairs) == self.pool_size, f"Expected {len(input_pairs)} to equal {self.pool_size}"
+        assert len(input_pairs) == self.num_chunks, f"Expected {len(input_pairs)} to equal {self.num_chunks}"
 
         encoded_series = p.map(encode_series, input_pairs)
         print(encoded_series[0].head())
 
-        enc_df = encoded_series[0].apply(lambda x: pd.Series(x, dtype='int16'))
+        enc_dfs = [x.apply(lambda x: pd.Series(x, dtype='int16')) for x in encoded_series[:1]]
+        print(enc_dfs[0].info())
+        enc_df = pd.concat(enc_dfs)
         # df = df[[self.id_column]].join(enc_df)
 
         joblib.dump(enc_df, self.output()['result'].path, compress=1)
