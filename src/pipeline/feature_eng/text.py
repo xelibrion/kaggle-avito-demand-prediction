@@ -34,10 +34,42 @@ def build_vocabulary(s_feature):
 
 
 def merge_vocabularies(one, other):
-    for k, v in other.items():
+    for k, _ in other.items():
         if k not in one:
             one[k] = len(one)
     return one
+
+
+@requires(ExtractFeature)
+class CharVocabulary(luigi.Task):
+    resources = {'concurrency': 1}
+
+    num_chunks = luigi.IntParameter(default=12)
+    pool_size = luigi.IntParameter(default=12)
+
+    def output(self):
+        return luigi.LocalTarget(f'_features/{self.feature_name}_char_vocabulary.pkl')
+
+    def run(self):
+        self.output().makedirs()
+
+        df = joblib.load(self.input().path)
+
+        max_text_length = int(df[self.feature_name].str.len().max())
+        print(f"Projected matrix dimensions: {df.shape[0]} x {max_text_length}")
+
+        idx_ranges = np.array_split(df.index, self.num_chunks)
+        subsets = list(map(lambda x: df.loc[x, self.feature_name], idx_ranges))
+        assert len(
+            subsets
+        ) == self.num_chunks, f"Expected {len(subsets)} to equal {self.num_chunks}"
+
+        p = Pool(self.pool_size)
+        vocabulary_candidates = p.map(build_vocabulary, subsets)
+
+        vocabulary = reduce(merge_vocabularies, vocabulary_candidates, {})
+        print(f"Vocabulary length: {len(vocabulary)}")
+        joblib.dump(vocabulary, self.output().path)
 
 
 def encode_series(input_tuple):
@@ -61,36 +93,18 @@ class CharEncode(luigi.Task):
 
     resources = {'concurrency': 1}
 
-    num_chunks = luigi.IntParameter(default=24)
-    pool_size = luigi.IntParameter(default=12)
+    num_chunks = luigi.IntParameter(default=240)
+    pool_size = luigi.IntParameter(default=2)
 
     def output(self):
-        return {
-            'result': luigi.LocalTarget(f'_features/{self.feature_name}_char_enc.pkl'),
-            'vocabulary': luigi.LocalTarget(f'_reference/{self.feature_name}_char_enc_vocabulary.json'),
-        }
+        return luigi.LocalTarget(f'_features/{self.feature_name}_char_enc.pkl')
 
     def run(self):
-        for _, out in self.output().items():
-            out.makedirs()
-
-        df = joblib.load(self.input().path)
-
-        max_text_length = int(df[self.feature_name].str.len().max())
-        print(f"Projected matrix dimensions: {df.shape[0]} x {max_text_length}")
-
-        idx_ranges = np.array_split(df.index, self.num_chunks)
-        subsets = list(map(lambda x: df.loc[x, self.feature_name], idx_ranges))
-        assert len(subsets) == self.num_chunks, f"Expected {len(subsets)} to equal {self.num_chunks}"
-
-        p = Pool(self.pool_size)
-        vocabulary_candidates = p.map(build_vocabulary, subsets)
-
-        vocabulary = reduce(merge_vocabularies, vocabulary_candidates, {})
-        print(f"Vocabulary length: {len(vocabulary)}")
 
         input_tuples = list(itertools.product(subsets, [vocabulary], [max_text_length]))
-        assert len(input_tuples) == self.num_chunks, f"Expected {len(input_tuples)} to equal {self.num_chunks}"
+        assert len(
+            input_tuples
+        ) == self.num_chunks, f"Expected {len(input_tuples)} to equal {self.num_chunks}"
 
         encoded_series = p.map(encode_series, input_tuples)
 
