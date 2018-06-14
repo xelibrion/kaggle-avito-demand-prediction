@@ -2,7 +2,8 @@ import hashlib
 import pandas as pd
 import luigi
 from sklearn.externals import joblib
-from .h5dataset import h5_dump, h5_load
+# from .h5dataset import dump, load
+from .pkl_dataset import dump, load
 
 
 class PrecomputedFeature(luigi.ExternalTask):
@@ -39,7 +40,7 @@ class FilterFeatureToFold(luigi.Task):
         self.output().makedirs()
 
         df = joblib.load(self.input()['feature'].path)
-        subset_idx = h5_load(self.input()['fold'].path, self.subset)
+        subset_idx = load(self.input()['fold'].path, self.subset)
 
         subset_df = df.iloc[subset_idx].drop(self.id_column, axis=1)
         joblib.dump(subset_df, self.output().path)
@@ -65,7 +66,7 @@ class ComposeDataset(luigi.Task):
         hash_content = f'{self.features}|{self.target}|{self.id_column}'
         hash_object = hashlib.md5(hash_content.encode('utf-8'))
         digest = hash_object.hexdigest()[:6]
-        return luigi.LocalTarget(f'_feature_folds/combined_{self.fold_id}_{self.subset}_{digest}.h5')
+        return luigi.LocalTarget(f'_feature_folds/combined_{self.fold_id}_{self.subset}_{digest}.pkl')
 
     def run(self):
         self.output().makedirs()
@@ -75,8 +76,8 @@ class ComposeDataset(luigi.Task):
 
         target_df = joblib.load(self.input()['target'].path)
 
-        h5_dump({
+        dump({
             'features': df.values,
             'target': target_df.values,
         },
-                self.output().path)
+             self.output().path)

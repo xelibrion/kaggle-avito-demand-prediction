@@ -11,7 +11,7 @@ import torch.nn
 import torch.backends.cudnn as cudnn
 import torch.optim
 
-from pipeline.h5dataset import h5_load
+from pipeline.pkl_dataset import load
 from pipeline.core import ComposeDataset
 from pipeline.nnet_mixed.bootstrap import create_data_pipeline, create_model, gpu_accelerated
 from pipeline.nnet_images import Tuner
@@ -30,11 +30,11 @@ class ParseNumFolds(argparse.Action):
             namespace.folds = [int(values)]
 
 
-class Vocabulary(luigi.ExternalTask):
+class CharVocabulary(luigi.ExternalTask):
     feature_name = luigi.Parameter()
 
     def output(self):
-        return luigi.LocalTarget(f'_reference/{self.feature_name}_vocabulary.json')
+        return luigi.LocalTarget(f'_features/{self.feature_name}_char_vocabulary.pkl')
 
 
 class TrainNNetOnFold(luigi.Task):
@@ -53,15 +53,15 @@ class TrainNNetOnFold(luigi.Task):
         return {
             'train': self.clone(ComposeDataset, subset='train'),
             'val': self.clone(ComposeDataset, subset='val'),
-            'voc_description': self.clone(Vocabulary, feature_name='description_char_enc'),
+            'voc_description': self.clone(CharVocabulary, feature_name='description'),
         }
 
     def run(self):
-        train_features, train_targets = h5_load(self.input()['train'].path, ['features', 'target'])
+        train_features, train_targets = load(self.input()['train'].path, ['features', 'target'])
         print(train_features.shape)
         print(train_targets.shape)
 
-        val_features, val_targets = h5_load(self.input()['val'].path, ['features', 'target'])
+        val_features, val_targets = load(self.input()['val'].path, ['features', 'target'])
         print(val_features.shape)
         print(val_targets.shape)
 
@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--folds', default=[1], action=ParseNumFolds)
-    parser.add_argument('--features', default='description_char_enc')
+    parser.add_argument('--features', default='description')
     parser.add_argument('--target', default='deal_probability_log')
     parser.add_argument('--batch-size', type=int, default=64)
 
