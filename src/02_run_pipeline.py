@@ -13,8 +13,9 @@ import torch.optim
 
 from pipeline.pkl_dataset import load
 from pipeline.core import ComposeDataset
-from pipeline.nnet_mixed.bootstrap import create_data_pipeline, create_model, gpu_accelerated
-from pipeline.nnet_images import Tuner
+from pipeline.nnet_mixed.bootstrap import (create_data_pipeline, create_model,
+                                           gpu_accelerated)
+from pipeline.nnet_mixed import Tuner
 
 
 class ParseNumFolds(argparse.Action):
@@ -53,11 +54,13 @@ class TrainNNetOnFold(luigi.Task):
         return {
             'train': self.clone(ComposeDataset, subset='train'),
             'val': self.clone(ComposeDataset, subset='val'),
-            'voc_description': self.clone(CharVocabulary, feature_name='description'),
+            'vocabulary_description': self.clone(
+                CharVocabulary, feature_name='description'),
         }
 
     def run(self):
-        train_features, train_targets = load(self.input()['train'].path, ['features', 'target'])
+        train_features, train_targets = load(self.input()['train'].path,
+                                             ['features', 'target'])
         print(train_features.shape)
         print(train_targets.shape)
 
@@ -65,10 +68,12 @@ class TrainNNetOnFold(luigi.Task):
         print(val_features.shape)
         print(val_targets.shape)
 
+        vocabulary = load(self.input()['vocabulary_description'].path)
+
         cudnn.benchmark = True
 
         criterion = torch.nn.MSELoss()
-        model, params = create_model()
+        model, params = create_model(len(vocabulary))
         model, criterion = gpu_accelerated(model, criterion)
 
         optimizer = torch.optim.Adam(params, self.lr)
@@ -76,6 +81,7 @@ class TrainNNetOnFold(luigi.Task):
         train_loader, val_loader = create_data_pipeline(
             (train_features, train_targets),
             (val_features, val_targets),
+            vocabulary,
             self.batch_size,
         )
 
@@ -83,7 +89,6 @@ class TrainNNetOnFold(luigi.Task):
             model,
             criterion,
             optimizer,
-            bootstrap_batches=self.bootstrap_batches,
             tag='fold_{}'.format(0),
         )
 
@@ -91,7 +96,10 @@ class TrainNNetOnFold(luigi.Task):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger("luigi.scheduler").setLevel(logging.WARNING)
 
     setup_interface_logging.has_run = True

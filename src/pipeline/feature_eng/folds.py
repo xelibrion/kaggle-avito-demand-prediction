@@ -1,7 +1,7 @@
 import pandas as pd
 import luigi
 from sklearn.model_selection import KFold
-from ..h5dataset import h5_dump
+from ..pkl_dataset import dump
 
 
 class CreateFolds(luigi.Task):
@@ -12,7 +12,10 @@ class CreateFolds(luigi.Task):
         return self.dataset
 
     def output(self):
-        return [luigi.LocalTarget(f'_folds/fold_{fold_id}.h5') for fold_id in range(self.num_folds)]
+        return [
+            luigi.LocalTarget(f'_folds/fold_{fold_id}.h5')
+            for fold_id in range(self.num_folds)
+        ]
 
     def run(self):
         for out in self.output():
@@ -23,7 +26,7 @@ class CreateFolds(luigi.Task):
 
         for fold_id, (train_idx, val_idx) in enumerate(folds.split(df)):
             out_path = self.output()[fold_id].path
-            h5_dump({
+            dump({
                 'train': train_idx,
                 'val': val_idx,
             }, out_path)

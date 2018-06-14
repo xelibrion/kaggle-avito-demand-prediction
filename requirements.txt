@@ -1,0 +1,5 @@
+luigi~=2.7.5
+http://download.pytorch.org/whl/cu91/torch-0.4.0-cp36-cp36m-linux_x86_64.whl
+opencv-python~=3.4.1
+tqdm~=4.23.4
+torchvision~=0.2.1
