@@ -104,9 +104,18 @@ if __name__ == '__main__':
 
     setup_interface_logging.has_run = True
 
+    FEATURES = [
+        'region_ohe',
+        'user_type_ohe',
+        'parent_category_name_ohe',
+        'price_isnull',
+        'price_fillna_stdscaled',
+        'description',
+    ]
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--folds', default=[1], action=ParseNumFolds)
-    parser.add_argument('--features', default='description')
+    parser.add_argument('--features', default=','.join(FEATURES))
     parser.add_argument('--target', default='deal_probability_log')
     parser.add_argument('--batch-size', type=int, default=64)
 
