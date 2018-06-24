@@ -7,7 +7,7 @@ import luigi
 from luigi.interface import setup_interface_logging
 from pipeline.feature_eng import (CorrectImagePath, ApplyLogTransform, MarkNullInstances,
                                   FillNaTransform, CreateFolds, TrainSet, OneHotEncode,
-                                  CharEncode, CharVocabulary)
+                                  CharEncode, CharVocabulary, StdScaled)
 
 logging.basicConfig(
     level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
@@ -24,8 +24,7 @@ class GenerateFeatures(luigi.WrapperTask):
         yield self.clone(ApplyLogTransform, feature_name='deal_probability')
         yield self.clone(MarkNullInstances, feature_name='price')
         yield self.clone(FillNaTransform, feature_name='price')
-        yield self.clone(ApplyLogTransform, feature_name='price')
-        yield self.clone(ApplyLogTransform, feature_name='price')
+        yield self.clone(StdScaled, feature_name='price_fillna')
         yield self.clone(CreateFolds)
         yield self.clone(OneHotEncode, feature_name='user_type')
         yield self.clone(OneHotEncode, feature_name='parent_category_name')
