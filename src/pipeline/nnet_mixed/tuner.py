@@ -96,7 +96,7 @@ class Tuner:
 
         scheduler = ReduceLROnPlateau(
             self.optimizer,
-            'max',
+            'min',
             threshold_mode='rel',
             threshold=0.002,
             patience=3,

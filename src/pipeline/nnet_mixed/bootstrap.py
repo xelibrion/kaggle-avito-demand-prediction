@@ -13,7 +13,7 @@ def gpu_accelerated(model, criterion):
     return model.cuda(), criterion.cuda()
 
 
-def create_data_pipeline(train_set, val_set, vocabulary, batch_size, workers=6):
+def create_data_pipeline(train_set, val_set, vocabulary, batch_size, workers=10):
     train_features, train_targets = train_set
     print()
     print(train_features[:5], end='\n\n')

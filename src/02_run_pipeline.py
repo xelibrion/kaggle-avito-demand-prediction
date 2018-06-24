@@ -118,6 +118,7 @@ if __name__ == '__main__':
     parser.add_argument('--features', default=','.join(FEATURES))
     parser.add_argument('--target', default='deal_probability_log')
     parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--lr', type=float, default=0.001)
 
     args = parser.parse_args()
 
@@ -127,6 +128,7 @@ if __name__ == '__main__':
             features=args.features,
             target=args.target,
             batch_size=args.batch_size,
+            lr=args.lr,
         ) for x in args.folds
     ]
 
