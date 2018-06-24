@@ -22,11 +22,11 @@ class CharEncodingDataset(dataset.Dataset):
         if not isinstance(sentence[0], float):
             encoded_sentence = [self.vocabulary[x] for x in sentence[0]]
             num_pad = self.pad_to_length - len(encoded_sentence)
-            # TODO: replace with appropriate code
-            encoded_sentence += [0 for _ in range(num_pad)]
+            encoded_sentence += [self.vocabulary['<pad>'] for _ in range(num_pad)]
         else:
-            # TODO: replace with appropriate code
-            encoded_sentence = [0 for _ in range(self.pad_to_length)]
+            encoded_sentence = [
+                self.vocabulary['<pad>'] for _ in range(self.pad_to_length)
+            ]
 
         x_tensor = torch.LongTensor(encoded_sentence)
         y_tensor = torch.FloatTensor([self.targets[idx]])

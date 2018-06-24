@@ -68,6 +68,7 @@ class CharVocabulary(luigi.Task):
         vocabulary_candidates = p.map(build_vocabulary, subsets)
 
         vocabulary = reduce(merge_vocabularies, vocabulary_candidates, {})
+        vocabulary['<pad>'] = len(vocabulary)
         print(f"Vocabulary length: {len(vocabulary)}")
         joblib.dump(vocabulary, self.output().path)
 
