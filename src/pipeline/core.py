@@ -23,7 +23,7 @@ class PrecomputedFold(luigi.ExternalTask):
 class FilterFeatureToFold(luigi.Task):
     feature_name = luigi.Parameter()
     fold_id = luigi.IntParameter()
-    subset = luigi.Parameter()
+    dataset_part = luigi.Parameter()
 
     id_column = luigi.Parameter()
 
@@ -40,10 +40,10 @@ class FilterFeatureToFold(luigi.Task):
         self.output().makedirs()
 
         df = joblib.load(self.input()['feature'].path)
-        subset_idx = load(self.input()['fold'].path, self.subset)
+        fold_idx = load(self.input()['fold'].path, self.dataset_part)
 
-        subset_df = df.iloc[subset_idx].drop(self.id_column, axis=1)
-        joblib.dump(subset_df, self.output().path)
+        feature_fold_df = df.iloc[fold_idx].drop(self.id_column, axis=1)
+        joblib.dump(feature_fold_df, self.output().path)
 
 
 class ComposeDataset(luigi.Task):
@@ -51,7 +51,7 @@ class ComposeDataset(luigi.Task):
     target = luigi.Parameter()
 
     fold_id = luigi.IntParameter()
-    subset = luigi.Parameter()
+    dataset_part = luigi.Parameter()
 
     id_column = luigi.Parameter()
 
@@ -66,7 +66,7 @@ class ComposeDataset(luigi.Task):
         hash_content = f'{self.features}|{self.target}|{self.id_column}'
         hash_object = hashlib.md5(hash_content.encode('utf-8'))
         digest = hash_object.hexdigest()[:6]
-        return luigi.LocalTarget(f'_feature_folds/combined_{self.fold_id}_{self.subset}_{digest}.pkl')
+        return luigi.LocalTarget(f'_feature_folds/combined_{self.fold_id}_{self.dataset_part}_{digest}.pkl')
 
     def run(self):
         self.output().makedirs()

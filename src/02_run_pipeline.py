@@ -51,8 +51,8 @@ class TrainNNetOnFold(luigi.Task):
 
     def requires(self):
         return {
-            'train': self.clone(ComposeDataset, subset='train'),
-            'val': self.clone(ComposeDataset, subset='val'),
+            'train': self.clone(ComposeDataset, dataset_part='train'),
+            'val': self.clone(ComposeDataset, dataset_part='val'),
             'vocabulary_description': self.clone(CharVocabulary, feature_name='description'),
         }
 
