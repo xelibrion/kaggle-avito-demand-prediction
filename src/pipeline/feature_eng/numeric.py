@@ -67,6 +67,6 @@ class StdScaled(luigi.Task):
 
         df = joblib.load(self.input().path)
         scaler = StandardScaler()
-        df.iloc[:, 1] = scaler.fit_transform(df.iloc[:, 1].reshape(-1, 1))
+        df.iloc[:, 1] = scaler.fit_transform(df.iloc[:, 1].values.reshape(-1, 1))
 
         joblib.dump(df, self.output().path)

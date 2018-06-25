@@ -40,7 +40,7 @@ class MixedNet(nn.Module):
             nn.AvgPool1d(kernel_size=4, padding=1),
         )
         self.relu = nn.ReLU()
-        self.out = nn.Linear(242, 1)
+        self.out = nn.Linear(244, 1)
 
     def forward(self, features):
         cat_features = features[:, :-self.text_length].float()
@@ -50,8 +50,6 @@ class MixedNet(nn.Module):
 
         batch_size = features.size(0)
 
-        final_input = torch.cat(
-            [cat_features.view(batch_size, -1),
-             conv_out.view(batch_size, -1)], dim=1)
+        final_input = torch.cat([cat_features.view(batch_size, -1), conv_out.view(batch_size, -1)], dim=1)
 
         return self.out(self.relu(final_input)).unsqueeze(dim=2)
