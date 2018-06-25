@@ -34,7 +34,8 @@ class FilterFeatureToFold(luigi.Task):
         }
 
     def output(self):
-        return luigi.LocalTarget(f'_feature_folds/{self.feature_name}_{self.fold_id}_{self.subset}.pkl')
+        return luigi.LocalTarget(
+            f'_feature_folds/{self.feature_name}_{self.fold_id}_{self.dataset_part}.pkl')
 
     def run(self):
         self.output().makedirs()
@@ -43,7 +44,7 @@ class FilterFeatureToFold(luigi.Task):
         fold_idx = load(self.input()['fold'].path, self.dataset_part)
 
         feature_fold_df = df.iloc[fold_idx].drop(self.id_column, axis=1)
-        joblib.dump(feature_fold_df, self.output().path)
+        joblib.dump(feature_fold_df.values, self.output().path)
 
 
 class ComposeDataset(luigi.Task):
@@ -55,29 +56,36 @@ class ComposeDataset(luigi.Task):
 
     id_column = luigi.Parameter()
 
+    def features_as_array(self):
+        return self.features.split(',')
+
     def requires(self):
-        features = self.features.split(',')
         return {
-            'features': [self.clone(FilterFeatureToFold, feature_name=x) for x in features],
-            'target': self.clone(FilterFeatureToFold, feature_name=self.target)
+            'features': [
+                self.clone(FilterFeatureToFold, feature_name=x)
+                for x in self.features_as_array()
+            ],
+            'target':
+            self.clone(FilterFeatureToFold, feature_name=self.target)
         }
 
     def output(self):
         hash_content = f'{self.features}|{self.target}|{self.id_column}'
         hash_object = hashlib.md5(hash_content.encode('utf-8'))
         digest = hash_object.hexdigest()[:6]
-        return luigi.LocalTarget(f'_feature_folds/combined_{self.fold_id}_{self.dataset_part}_{digest}.pkl')
+        return luigi.LocalTarget(
+            f'_feature_folds/combined_{self.fold_id}_{self.dataset_part}_{digest}.pkl')
 
     def run(self):
         self.output().makedirs()
 
-        dfs = [joblib.load(x.path) for x in self.input()['features']]
-        df = pd.concat(dfs, axis=1, join='inner')
+        f_arrays = [joblib.load(x.path) for x in self.input()['features']]
+        features = {k: v for (k, v) in zip(self.features_as_array(), f_arrays)}
 
-        target_df = joblib.load(self.input()['target'].path)
+        target_arr = joblib.load(self.input()['target'].path)
 
         dump({
-            'features': df.values,
-            'target': target_df.values,
+            'features': features,
+            'target': target_arr,
         },
              self.output().path)

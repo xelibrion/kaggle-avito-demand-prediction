@@ -58,12 +58,16 @@ class TrainNNetOnFold(luigi.Task):
 
     def run(self):
         train_features, train_targets = load(self.input()['train'].path, ['features', 'target'])
-        print(train_features.shape)
-        print(train_targets.shape)
+        print()
+        for k, v in train_features.items():
+            print(k, v.shape)
+        print(train_targets.shape, end='\n\n')
 
         val_features, val_targets = load(self.input()['val'].path, ['features', 'target'])
-        print(val_features.shape)
-        print(val_targets.shape)
+        print()
+        for k, v in val_features.items():
+            print(k, v.shape)
+        print(val_targets.shape, end='\n\n')
 
         vocabulary = load(self.input()['vocabulary_description'].path)
 
