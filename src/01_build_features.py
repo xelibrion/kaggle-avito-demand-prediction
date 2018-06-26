@@ -6,7 +6,7 @@ import logging
 import luigi
 from luigi.interface import setup_interface_logging
 from pipeline.feature_eng import (CorrectImagePath, ApplyLogTransform, MarkNullInstances, FillNaTransform, CreateFolds,
-                                  TrainSet, OneHotEncode, CharVocabulary, StdScaled, ExtractFeature)
+                                  TrainSet, OneHotEncode, CharVocabulary, StdScaled, ExtractFeature, LabelEncode)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -30,7 +30,12 @@ class GenerateFeatures(luigi.WrapperTask):
         yield self.clone(CreateFolds)
         yield self.clone(OneHotEncode, feature_name='user_type')
         yield self.clone(OneHotEncode, feature_name='parent_category_name')
+        yield self.clone(OneHotEncode, feature_name='category_name')
         yield self.clone(OneHotEncode, feature_name='region')
+        yield self.clone(LabelEncode, feature_name='city')
+        yield self.clone(LabelEncode, feature_name='param_1')
+        yield self.clone(LabelEncode, feature_name='param_2')
+        yield self.clone(LabelEncode, feature_name='param_3')
         yield self.clone(CharVocabulary, feature_name='description')
 
 

@@ -106,11 +106,12 @@ if __name__ == '__main__':
         'region_ohe',
         'user_type_ohe',
         'parent_category_name_ohe',
+        'category_name_ohe',
         'price_isnull',
         'price_fillna_stdscaled',
         'image_top_1_isnull',
         'image_top_1_fillna_stdscaled',
-        'description',
+        'city_le',
     ]
 
     parser = argparse.ArgumentParser()

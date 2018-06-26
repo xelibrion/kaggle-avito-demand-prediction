@@ -62,3 +62,32 @@ class OneHotEncode(luigi.Task):
 
         df_out = df[[self.id_column]].join(df_enc)
         joblib.dump(df_out, self.output().path)
+
+
+@inherits(CommonParams)
+class LabelEncode(luigi.Task):
+    def requires(self):
+        return {
+            'cat_values': self.clone(AllCategoryValues),
+            'feature': self.clone(ExtractFeature),
+        }
+
+    def output(self):
+        return luigi.LocalTarget(f'_features/{self.feature_name}_le.pkl')
+
+    def _cat_values(self):
+        with open(self.input()['cat_values'].path, encoding='utf-8') as cat_file:
+            return [x.strip('\n') for x in cat_file.readlines()]
+
+    def run(self):
+        self.output().makedirs()
+
+        df = joblib.load(self.input()['feature'].path)
+
+        feature_as_cat = pd.Categorical(
+            df[self.feature_name],
+            categories=self._cat_values(),
+        )
+        df[self.feature_name] = feature_as_cat.codes
+
+        joblib.dump(df, self.output().path)
