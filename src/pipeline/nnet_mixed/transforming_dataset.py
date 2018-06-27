@@ -24,7 +24,7 @@ class TransformingDataset(dataset.Dataset):
     def __getitem__(self, idx):
         feature_values = [self._apply(k, v[idx]) for k, v in self.features.items()]
 
-        x_tensor = torch.cat([torch.LongTensor(x) for x in feature_values])
+        x_tensor = torch.cat([torch.FloatTensor(x) for x in feature_values])
         y_tensor = torch.FloatTensor([self.targets[idx]])
 
         return x_tensor, y_tensor

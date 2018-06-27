@@ -56,6 +56,6 @@ def create_data_pipeline(train_set, val_set, vocabulary, batch_size, workers=10)
 
 
 def create_model(description_voc_size):
-    model = MixedNet(description_voc_size=description_voc_size)
+    model = MixedNet()
 
     return model, model.parameters()
