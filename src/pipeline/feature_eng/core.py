@@ -3,9 +3,12 @@ import luigi
 from sklearn.externals import joblib
 
 
-class CommonParams(luigi.Task):
+class CoreParams(luigi.Task):
     dataset = luigi.TaskParameter()
     id_column = luigi.Parameter()
+
+
+class SingleFeatureParams(CoreParams):
     feature_name = luigi.Parameter()
 
 

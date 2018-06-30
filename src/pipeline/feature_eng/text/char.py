@@ -9,7 +9,7 @@ from luigi.util import requires
 from sklearn.externals import joblib
 from multiprocessing import Pool
 
-from .core import ExtractFeature
+from ..core import ExtractFeature
 
 
 def json_dump(obj, path):

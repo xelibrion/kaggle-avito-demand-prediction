@@ -3,11 +3,11 @@ import luigi
 from luigi.util import inherits
 from sklearn.externals import joblib
 
-from .core import ExtractFeature, CommonParams
+from .core import ExtractFeature, SingleFeatureParams
 from .input_data import TrainSet, TestSet
 
 
-@inherits(CommonParams)
+@inherits(SingleFeatureParams)
 class AllCategoryValues(luigi.Task):
     def requires(self):
         return {
@@ -34,7 +34,7 @@ class AllCategoryValues(luigi.Task):
                 out_file.write('\n')
 
 
-@inherits(CommonParams)
+@inherits(SingleFeatureParams)
 class OneHotEncode(luigi.Task):
     def requires(self):
         return {
@@ -64,7 +64,7 @@ class OneHotEncode(luigi.Task):
         joblib.dump(df_out, self.output().path)
 
 
-@inherits(CommonParams)
+@inherits(SingleFeatureParams)
 class LabelEncode(luigi.Task):
     def requires(self):
         return {

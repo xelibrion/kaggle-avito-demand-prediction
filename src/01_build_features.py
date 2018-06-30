@@ -5,10 +5,13 @@ import logging
 
 import luigi
 from luigi.interface import setup_interface_logging
-from pipeline.feature_eng import (CorrectImagePath, ApplyLogTransform, MarkNullInstances, FillNaTransform, CreateFolds,
-                                  TrainSet, OneHotEncode, CharVocabulary, StdScaled, ExtractFeature, LabelEncode)
+from pipeline.feature_eng import (CorrectImagePath, ApplyLogTransform, MarkNullInstances,
+                                  FillNaTransform, CreateFolds, TrainSet, OneHotEncode,
+                                  CharVocabulary, StdScaled, ExtractFeature, LabelEncode,
+                                  FastTextVectors)
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+logging.basicConfig(
+    level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
 logging.getLogger("luigi.scheduler").setLevel(logging.WARNING)
 
@@ -16,6 +19,11 @@ logging.getLogger("luigi.scheduler").setLevel(logging.WARNING)
 class GenerateFeatures(luigi.WrapperTask):
     id_column = luigi.Parameter(default='item_id')
     dataset = luigi.TaskParameter(default=TrainSet())
+
+    text_features = [
+        'region', 'city', 'parent_category_name', 'category_name', 'param_1', 'param_2',
+        'param_3', 'title', 'description', 'user_type'
+    ]
 
     def requires(self):
         yield self.clone(CorrectImagePath, feature_name='image')
@@ -37,6 +45,7 @@ class GenerateFeatures(luigi.WrapperTask):
         yield self.clone(LabelEncode, feature_name='param_2')
         yield self.clone(LabelEncode, feature_name='param_3')
         yield self.clone(CharVocabulary, feature_name='description')
+        yield self.clone(FastTextVectors, features=','.join(self.text_features))
 
 
 if __name__ == '__main__':
