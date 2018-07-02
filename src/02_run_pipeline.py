@@ -13,7 +13,8 @@ import torch.optim
 
 from pipeline.pkl_dataset import load
 from pipeline.core import ComposeDataset
-from pipeline.nnet_mixed.bootstrap import (create_data_pipeline, create_model, gpu_accelerated)
+from pipeline.nnet_mixed.bootstrap import (create_data_pipeline, create_model,
+                                           gpu_accelerated)
 from pipeline.nnet_mixed import Tuner
 
 
@@ -53,11 +54,13 @@ class TrainNNetOnFold(luigi.Task):
         return {
             'train': self.clone(ComposeDataset, dataset_part='train'),
             'val': self.clone(ComposeDataset, dataset_part='val'),
-            'vocabulary_description': self.clone(CharVocabulary, feature_name='description'),
+            'vocabulary_description': self.clone(
+                CharVocabulary, feature_name='description'),
         }
 
     def run(self):
-        train_features, train_targets = load(self.input()['train'].path, ['features', 'target'])
+        train_features, train_targets = load(self.input()['train'].path,
+                                             ['features', 'target'])
         print()
         for k, v in train_features.items():
             print(k, v.shape)
@@ -97,7 +100,10 @@ class TrainNNetOnFold(luigi.Task):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger("luigi.scheduler").setLevel(logging.WARNING)
 
     setup_interface_logging.has_run = True

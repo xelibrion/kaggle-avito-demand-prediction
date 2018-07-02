@@ -8,7 +8,7 @@ from luigi.interface import setup_interface_logging
 from pipeline.feature_eng import (CorrectImagePath, ApplyLogTransform, MarkNullInstances,
                                   FillNaTransform, CreateFolds, TrainSet, OneHotEncode,
                                   CharVocabulary, StdScaled, ExtractFeature, LabelEncode,
-                                  FastTextVectors)
+                                  FastTextVectors, WordVectors)
 
 logging.basicConfig(
     level=logging.INFO, format="%(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
@@ -45,7 +45,10 @@ class GenerateFeatures(luigi.WrapperTask):
         yield self.clone(LabelEncode, feature_name='param_2')
         yield self.clone(LabelEncode, feature_name='param_3')
         yield self.clone(CharVocabulary, feature_name='description')
-        yield self.clone(FastTextVectors, features=','.join(self.text_features))
+        yield self.clone(
+            WordVectors,
+            feature_name='description',
+            train_features=','.join(self.text_features))
 
 
 if __name__ == '__main__':
